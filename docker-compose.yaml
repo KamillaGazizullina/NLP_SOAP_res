@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: soap_db
+    restart: always
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=soap_history
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: soap_app
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://admin:password@db:5432/soap_history
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434/api/chat
+      - OLLAMA_MODEL=qwen2.5:3b
+    ports:
+      - "8501:8501"
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Позволяет контейнеру видеть Ollama
+
+volumes:
+  postgres_data:

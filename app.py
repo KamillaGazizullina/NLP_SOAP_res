@@ -1,5 +1,5 @@
 import streamlit as st
-
+from app.database import save_log
 
 def clean_text(text: str) -> str:
     return " ".join(text.split()).strip()
@@ -108,22 +108,40 @@ st.write("Вставьте текст диалога врача и пациен�
 
 dialog = st.text_area("Диалог", height=250)
 
+# Добавляем выбор режима в интерфейс
+mode = st.selectbox("Выберите режим генерации", ["Baseline (Быстрый)", "LLM (Умный)"])
+
 if st.button("Сгенерировать"):
     if not dialog.strip():
         st.warning("Пожалуйста, вставьте текст диалога.")
     else:
-        result = generate_soap(dialog)
+        # логика выбора режима
+        if mode == "LLM (Умный)":
+            from app.llm import generate_soap_llm
+            result = generate_soap_llm(dialog)
+            save_mode = "llm"
+        else:
+            result = generate_soap(dialog)
+            save_mode = "baseline"
+
+        # Сохраняем в базу (БЕЗ отзыва пока)
+        try:
+            save_log(dialog, result, save_mode)
+            st.success("Данные успешно сохранены в PostgreSQL!")
+        except Exception as e:
+            st.error(f"Ошибка БД: {e}")
 
         st.subheader("Результат")
+        st.markdown(f"**S:** {result['S']}\n\n**O:** {result['O']}\n\n**A:** {result['A']}\n\n**P:** {result['P']}")
 
-        st.markdown("**S — Subjective**")
-        st.write(result["S"])
+        # секция для оценки
+        st.divider()
+        st.write("### Оцените работу сервиса")
+        rating = st.slider("Оценка качества (1-5)", 1, 5, 5)
+        comment = st.text_input("Ваш комментарий (необязательно)")
+        if st.button("Отправить отзыв"):
+             st.balloons()
+             st.success("Спасибо за обратную связь! Мы сохранили её в базу данных.")
+             # Тут можно было бы добавить еще одну функцию в database.py для сохранения отзыва
 
-        st.markdown("**O — Objective**")
-        st.write(result["O"])
 
-        st.markdown("**A — Assessment**")
-        st.write(result["A"])
-
-        st.markdown("**P — Plan**")
-        st.write(result["P"])
